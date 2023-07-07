@@ -1,57 +1,51 @@
 import pandas as pd
 import numpy as np
 import unittest
-from main import preprocessing, check_data_quality, run_dbscan
+from main import NewsletterGenerator
 
-class TestDataProcessing(unittest.TestCase):
+
+class TestNewsletterGenerator(unittest.TestCase):
     def setUp(self):
-        # Create a sample DataFrame for testing
-        self.df = pd.DataFrame({
-            'latitude': [1.0, 2.0, 3.0, np.nan, 5.0],
-            'longitude': [10.0, 20.0, np.nan, 40.0, 50.0],
-            'user_id': [101, 102, 103, 104, 105],
-            'latitude_rad': np.radians([1.0, 2.0, 3.0, np.nan, 5.0]),
-            'longitude_rad': np.radians([10.0, 20.0, np.nan, 40.0, 50.0])
+        self.newsletter_generator = NewsletterGenerator(
+            "input.csv", "output.csv")
+        self.sample_data = pd.DataFrame({
+            'user_id': ['101', '102', '103', None, '105'],
+            'latitude': [50.7749, None, 51.8781, 51.7604, 50.7392],
+            'longitude': [13.4194, 13.2437, 13.6298, 13.3698, 13.9903],
         })
+
+        self.sample_data['latitude_rad'] = np.radians(
+            self.sample_data['latitude'])
+        self.sample_data['longitude_rad'] = np.radians(
+            self.sample_data['longitude'])
 
     def test_preprocessing(self):
+        self.newsletter_generator.df = self.sample_data
         # Test the preprocessing function
-        preprocessed_df = preprocessing(self.df)
-
+        preprocessed_sample_data = self.newsletter_generator.preprocessing()
         # Check that null value rows are removed
-        self.assertEqual(len(preprocessed_df), 3)
+        self.assertEqual(len(preprocessed_sample_data), 3)
 
         # Check that latitude and longitude columns are in correct format
-        self.assertTrue(pd.api.types.is_numeric_dtype(preprocessed_df['latitude']))
-        self.assertTrue(pd.api.types.is_numeric_dtype(preprocessed_df['longitude']))
+        self.assertTrue(pd.api.types.is_numeric_dtype(
+            preprocessed_sample_data['latitude']))
+        self.assertTrue(pd.api.types.is_numeric_dtype(
+            preprocessed_sample_data['longitude']))
 
-    def test_check_data_quality(self):
-        # Test the check_data_quality function
-        # Case: Missing required columns
-        missing_columns_df = pd.DataFrame({'latitude': [1.0, 2.0, 3.0, 5.0], 'longitude': [10.0, 20.0, 40.0, 50.0]})
-        with self.assertRaises(SystemExit):
-            check_data_quality(missing_columns_df)
+    def test_calculate_distance(self):
+        start_point1 = (50.7749, 13.4194)
+        start_point2 = (50.0522, 13.2437)
+        distance = self.newsletter_generator.calculate_distance(
+            start_point1, start_point2)
+        self.assertAlmostEqual(distance, 81.3551782656741, places=1)
 
-        # Case: Less than 5 rows
-        less_rows_df = pd.DataFrame({
-            'latitude': [1.0, 2.0, 3.0],
-            'longitude': [10.0, 20.0, 30.0],
-            'user_id': [101, 102, 103]
-        })
-        with self.assertRaises(SystemExit):
-            check_data_quality(less_rows_df)
+    def test_get_centermost_point(self):
+        cluster = [(50.7749, 13.4194), (50.0522, 14.2437),
+                   (50.8781, 13.6298), (51.7604, 12.3698), (29.7604, 13.3698)]
+        centermost_point = self.newsletter_generator.get_centermost_point(
+            cluster)
+        self.assertEqual(centermost_point, (50.0522, 14.2437))
 
-    def test_run_dbscan(self):
-        # Test the run_dbscan function
-        epsilon = 0.5
-        min_samples = 3
-
-        self.df = preprocessing(self.df)
-        # Run DBSCAN
-        labels, _ = run_dbscan(self.df, epsilon, min_samples)
-
-        # Check that cluster labels are assigned correctly
-        self.assertEqual(labels.tolist(), [-1, -1, -1])
 
 if __name__ == '__main__':
     unittest.main()
