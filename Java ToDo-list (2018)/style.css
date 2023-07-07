@@ -1,0 +1,4 @@
+#tausta {
+    background: linear-gradient(200deg, #36A7E7 0%, #89CBF1 74%);
+    z-index: 2;
+}

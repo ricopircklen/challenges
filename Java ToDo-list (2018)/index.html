@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ToDo</title>
+    <!-- Latest compiled and minified CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootswatch/4.3.1/superhero/bootstrap.min.css" rel="stylesheet" integrity="sha384-LS4/wo5Z/8SLpOLHs0IbuPAGOWTx30XSoZJ8o7WKH0UJhRpjXXTpODOjfVnNjeHu" crossorigin="anonymous">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="text-align: center">
+<div class="jumbotron" id="tausta">
+    <h1>Tämä on To Do -lista</h1>
+    <h4><small>Lycka till.</small></h4>
+</div>
+<div class="panel panel-primary" style="margin: 20px">
+    <div class="panel-heading" style="font-size: x-large; margin: 10px">Listaa kaikki ToDot</div>
+    <div class="panel-body">
+        <button class="btn btn-info" onclick="performGetRequest1()">Hae kaikki</button>
+        <button class="btn btn-danger" onclick="clearOutput()">Sulje</button>
+        <div class="panel-body" style="margin: 10px" id="getResult1"></div>
+    </div>
+</div>
+<div class="panel panel-primary" style="margin: 20px">
+    <div class="panel-heading" style="font-size: x-large">Lisää uusi Todo</div>
+    <div class="panel-body">
+        <form class="form-inline" id="todoInputForm">
+            <div class="form-group" style="margin: auto">
+                <input type="text" class="form-control" style="width: 200px;" id="todoTitle" placeholder="Uusi ToDo ...">
+                <button type="submit" class="btn btn-info">Lisää</button>
+            </div>
+        </form>
+        <button class="btn btn-danger" style="margin: 10px" onclick="clearOutput()">Sulje</button>
+        <div class="panel-body" id="postResult"></div>
+    </div>
+</div>
+<div class="panel panel-primary" style="margin: 20px">
+    <div class="panel-heading" style="font-size: x-large">Poista ToDo</div>
+    <div class="panel-body">
+        <input type="text" class="form-control" style="width: 200px; margin: auto" id="todoId" placeholder="ToDon numero ..."/>
+        <button class="btn btn-info" style="margin-top: 10px" onclick="performGetRequest2()">Poista</button>
+        <button class="btn btn-danger" style="margin-top: 10px" onclick="clearOutput()">Sulje</button>
+        <div class="panel-body" style="margin: 10px" id="getResult2"></div>
+    </div>
+</div>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script type="text/javascript" charset="utf-8" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+2 is prime.
+3 is prime.
+4 is not prime. It is divisible by 2.
+5 is prime.
+6 is not prime. It is divisible by 2.
+7 is prime.
