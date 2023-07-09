@@ -13,6 +13,18 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
+class FileFormatError(Exception):
+    pass
+
+
+class MissingColumnsError(Exception):
+    pass
+
+
+class InsufficientRowsError(Exception):
+    pass
+
+
 class NewsletterGenerator:
     """
     The NewsletterGenerator class provides functionality to generate a CSV newsletter for group cycling events.
@@ -36,7 +48,7 @@ class NewsletterGenerator:
 
     def __init__(self, input_file: str, output_file: str) -> None:
         if not input_file.endswith(('.csv', '.csv.gz')):
-            sys.exit("Error: Input file is not a CSV file")
+            raise FileFormatError("Input file is not a CSV file")
         self.input_file = input_file
         self.output_file = output_file
         self.df = None
@@ -198,18 +210,19 @@ class NewsletterGenerator:
             self.df.loc[self.df['user_id'].isin(
                 members), ['group_id', 'potential_group_members', 'group_size']] = [group_id, ','.join(members), group_size]
 
-    def run_optics(self, min_samples: int, xi: float) -> Tuple[pd.Series, List]:
+    def run_optics(self, min_samples: int = 5, xi: float = 0.01) -> Tuple[pd.Series, List]:
         """
         Runs OPTICS clustering on the given dataframe using the specified min_samples and xi.
-        Haversine is approriate for geospatial data.
+        Utilises Haversine metric that is approriate for geospatial data.
 
         Args:
             min_samples (int): The minimum number of samples required for a group to be considered as a cluster.
             xi (float): The parameter for the OPTICS algorithm, specifying a minimum steepness on the reachability plot.
 
         Returns:
-            pd.Series: The cluster labels assigned by OPTICS.
-            list: optics labels.
+            Tuple[pd.Series, List]:
+                - pd.Series: The cluster labels assigned by OPTICS.
+                - List: The labels from the OPTICS object.
         """
         optics = OPTICS(min_samples=min_samples, xi=xi, metric="haversine")
         self.df['cluster_label'] = optics.fit_predict(
@@ -276,7 +289,7 @@ class NewsletterGenerator:
             self.df.loc[self.df['user_id'] == user_id,
                         'cluster_label'] = closest_cluster_idx
 
-    def _assign_starting_points(self) -> None:
+    def _assign_starting_points_for_each_cluster(self) -> None:
         """
         Create a dictionary mapping cluster labels to starting point IDs and add starting points.
 
@@ -315,7 +328,7 @@ class NewsletterGenerator:
         self._assign_cluster_for_outliers()
         self._filter_outliers_and_keep_closest_points()
         self._reassign_small_clusters()
-        self._assign_starting_points()
+        self._assign_starting_points_for_each_cluster()
 
     def generate_output(self) -> None:
         """
@@ -379,8 +392,16 @@ def main() -> None:
     input_file = args.input_file
     output_file = args.output_file
 
-    newsletter_generator = NewsletterGenerator(input_file, output_file)
-    newsletter_generator.generate_newsletter_csv()
+    try:
+        newsletter_generator = NewsletterGenerator(input_file, output_file)
+        newsletter_generator.generate_newsletter_csv()
+    except (FileFormatError, MissingColumnsError, InsufficientRowsError) as e:
+        logging.error(str(e))
+        sys.exit(1)
+    except Exception:
+        logging.exception(
+            "An error occurred during newsletter CSV generation.")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
