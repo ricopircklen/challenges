@@ -5,45 +5,48 @@
 1. Recommended to run a virtual env (e.g. `python3 -m venv myenv`; Win: `myenv\Scripts\activate` / MacOS & Linux: `source myenv/bin/activate`)
 2. Install required packages by running `pip install -r requirements.txt`
 3. Run the script by `python main.py tours.csv.gz output.csv` where the first argument is the name of the input file and the second argument the name of the output file.
-4. Tests are in tests.py and can be run with `python -m unittest tests.py`
+4. Tests are in tests.py and can be run with `python -m unittest tests/tests.py`
 
 ## Logic
 
-- The selected strategy is to use DBSCAN to cluster users into points so that each group would have an arbitraty minimum 5 individuals and maximum 40 to make the potential group to have a reasonable size for a collaborative activity.
-- The starting point is chosen as the point that is nearest to the cluster’s centroid. This is based on the assumption that the starting points are already proven to be "good".
-- Users that do not fall into any cluster, are appointed to a cluster that is closest to him/her. We propose only one group for each user_id to avoid the situation where a user will get spammed by dyzens of different groups.
-- Each user might have multiple points and belong to multiple clusters, yet only the cluster where the distance to the starting point is the smallest, is selected.
-- Each cluster that has over 40 members is split into smaller groups to make the activity easier to organize.
+- The selected strategy is to use OPTICS to cluster users into points so that each group would have an arbitraty minimum of 5 individuals.
+- After clustering, outlier data points that weren't clustered, are assigned to their closest existing cluster, respectively.
+- Next, for every unique user, we save only their closest cluster. This is defined as the smallest distance to any single starting point the user has. We propose only one group for each user to avoid the situation where a user will get spammed by dozens of groups.
+- Lastly, clusters that end up having less than 5 individuals, will be reassigned to their closest clusters, respectively.
+- Next, each cluster is grouped into sets of maximum 40 members in order to have a reasonable group size for a collaborative activity. Groups are assigned randomly but fairly, e.g. a cluster of 41 users is divided into groups of 20 and 21 users.
+- The starting point is chosen as the point that is nearest to the cluster’s centroid. This is based on the assumption that the existing input starting points are already proven to be "good".
 
 ## Todos and improvements
 
-This code was generated in the proposed 2 hours, and lots were left out.
-
-- From coding perspective, there is a lot of room for improvements, including error handling, adding tests, logging, typed inputs, reformatting, and cleaning the code in general. If utilized for bigger datasets, a further optimization would be recommended. Also a better UX so that a non-coder user could utilize the script could be beneficial, e.g. through streamlit, including also comments on wrong behaviour (e.g. wrong input type or column names).
-- We have set an arbitraty value of 1km for DBSCAN epsilon. Selecting a metric e.g. mean distance to the starting point, and using grid search or other means to optimize the hyperparameters would be likely to improve the results.
-- Additionally, we could consider running multiple DBSCANs, e.g. first clustering tightly those within 100m from each other, then extending the search to 1km, and so on until each member is in a cluster. This would be beneficial for this sort of dataset where some users are tightly located in the city center while others more sparcily outside of the city. Alternatively, we could also consider other algorithms e.g. HDBSCAN and test their performance.
-- Also checking data quality for missing values and shuffling the data would be basic steps that should be included.
+- First thing would be to define the requirements, especially regarding the expected input dataset size, as well as whether the input is considered to be a single area or a bigger region.
+- Error handling and testing: The code has not been rigorously tested on edge cases e.g. wrong input and output file formats, empty or massive datasets, and cases e.g. wrong format of latitudes and longitudes.
+- Memory management and performance: The code doesn’t consider that the input datasets might be massive, slowing down the system or running out of memory. Also tools like Dask or Vaex may perform better than pandas for bigger datasets.
+- Data validation: Additional checks can be added for the incoming data to ensure its validity. For example, checking that the latitude and longitude are within valid ranges.
+- Result validation: Processing potential outliers, e.g. removing users from newsletters that are unreasonably far away from the starting point might make sense.
+- Code structure: If the project size would increase, the code shall be split into multiple files and modules for better maintainability and readability, starting from separating the clustering algorithm.
+- Improved feature engineering and clustering algorithm for better results. E.g. prioritizing areas where the user has higher weight of points, potentially indicating preference towards such starting point. Such user specific preferences could be analyzed further and used to improve the algorithm.
+- Improved logging
+- Refine the grouping process
+- Improved UX so that a non-coder user could utilize the script could be beneficial, e.g. through streamlit.
+- Simple tricks e.g. shuffling the input data tends to be suggested for ML algorithms and might affect the behaviour depending on how the input dataset was formed.
 - Single user might have multiple points in a cluster, and therefore have a more significant effect on calculating the centroid. This can be considered positive since an active user might deserve a higher weight on deciding the starting point. Alternative, the centroid could be calculated equally, considering only one point per user.
 - The starting point is likely to be in an inconvenient location, and we could consider using google maps or open map data to automatically detect and propose the nearest landmark for a more practical and easier starting point.
-- There is a chance that a group is formed around multiple data points from a single user, and after cleaning out, the group does not have the arbitrarily selected minimum of 5 members. Such groups could be considered to be appointed to other groups. Right now, the minimum number of individuals in a group is 3.
-- The maximum distance of the most distant user is currently almost 40km. Such cases could be considered to be filtered out or handled with an improved clustering algorithm, if the point is to ride to the starting point for a 50km ride.
 - Other considerations: Due to GDPR, it sounds slightly sketchy to share information of users that live or like to cycle close to your location, and might be more suitable for the US than the European market in the proposed newletter format.
-- Potential improvements also include considering if users have some preferences regarding a starting point, e.g. one starting point might be close to them but the user might tend to prefer some more distant starting point, which could be indicated by the user having multiple data points in a specific region. Such user specific preferences could be analyzed further and used to improve the algorithm.
 
 ## Process to getting to the solution
 
-The process was rather straightforward: I started with a small EDA to have a basic understanding of the data. After this, I coded a quick and simple brute force script to find the nearest users in order to have a benchmark. This was clearly a very slow and simple approach, so I improved it using the tools and logic I was familiar and knew to perform well for geolocations (DBSCAN). The rest, e.g. grouping users came on the fly by noticing that a cluster of thousands of users does not sound practical for the suggested purpose. Most of such weaknesses were acknowledged above but left in place for the sake of keeping the task compact.
+The process was rather straightforward: I started with a small EDA to have a basic understanding of the data (eda.ipynb). After this, I coded a quick and simple brute force script to find the nearest users in order to have a benchmark. This was clearly a very slow and simple approach, so I improved it using the tools and logic I was familiar and knew to perform well for geolocations (DBSCAN). For comparison, HDBSCAN and OPTICS were tested. The rest, e.g. grouping user came on the fly by noticing that a cluster of thousands of users does not sound practical for the suggested purpose.
 
 ## Strengths and limitations
 
-DBScan (especially with the selected ball tree algo) is very simple and straightforward algorithm that is much more performant (especially computationally) than brute forcing data points, and is known to be a robust clustering algorithm for geolocations.
-
-The limitations of the method come e.g. from selecting a single epsilon and minimum number of samples. In order to improve this, we would need either run multiple DBSCANs or to utilize a different algorithm, to get better clustering for varying environments, e.g. in the city center users are within hundreds of meters from each other, and the clustering could be much more tighter while further away, the clustering would benefit from being looser.
-
-Other limitations come from the practical point of view, e.g. potentially ending up with too big or small clusters, since a single user with multiple data points might generate a cluster of his/her own. Such cases would be easiest to take into account through post processing the results.
-
-Other limitations of the solution in general are discussed in todos and improvements -section.
+- DBScan (especially with the selected ball tree algo) is very simple and straightforward algorithm that is much more performant (especially computationally) than brute forcing data points, and is known to be a robust clustering algorithm for geolocations. Therefore, a strong candidate as a first choice for exploratory analysis.
+- HDBSCAN doesn't not require DBSCAN's epsilon, and can find clusters of varying densities - a clear improvement for the selected use case. HDBSCAN is especially a good choice when you don't know how many clusters to expect and you believe there might be noise and varying density. However, the algorithm is computationally much more intensive.
+- Compared to HDBSCAN, OPTICS provides additional insight into the structure of the data, which may be useful for more complex analyses.
+- In general, the limitations of the method can be seen to include the hard coded minimum number of samples in a cluster.
+- Other limitations of the solution in general are discussed in todos and improvements -section, e.g. lack of personal preferences in cases where a user has multiple data points. Also, the selected method would become computationally very intensive in cases of massive amount of datapoints. Improved preprocessing could help, e.g. selecting for each user only a few most significant data points.
 
 ## Learnings
 
-I haven't dealt with unsupervised learning and clustering in a while so it was refreshing to play around with such models for a change. My main learnings however came from the domain side and data by starting to consider the behaviour and preferences of a user, and all the different ways such data could be used to improve the results.
+I haven't dealt with unsupervised learning and clustering in a while so it was refreshing to play around with such models for a change. My main learnings however came from the domain side and data by starting to consider the behaviour and preferences of a user, and all the different ways the results could be improved and to make them better suit for the use case.
+
+I'm expecting the main learnings to come from the feedback and expect feedback especially regarding the code quality, and the selected algorithm.
