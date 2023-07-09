@@ -26,6 +26,7 @@
 - Code structure: If the project size would increase, the code shall be split into multiple files and modules for better maintainability and readability, starting from separating the clustering algorithm.
 - Improved feature engineering and clustering algorithm for better results. E.g. prioritizing areas where the user has higher weight of points, potentially indicating preference towards such starting point. Such user specific preferences could be analyzed further and used to improve the algorithm.
 - Improved logging
+- Pinning dependencies to specific version in requirements.txt
 - Refine the grouping process
 - Improved UX so that a non-coder user could utilize the script could be beneficial, e.g. through streamlit.
 - Simple tricks e.g. shuffling the input data tends to be suggested for ML algorithms and might affect the behaviour depending on how the input dataset was formed.
