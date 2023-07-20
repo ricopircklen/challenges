@@ -27,12 +27,8 @@ class NewsletterGenerator:
         The centermost points of clusters used to reassign users.
     """
 
-    MAX_GROUP_SIZE = 40
-    MAX_CHUNK_SIZE = 10000
-    MIN_CLUSTER_SIZE = 5
-    XI = 0.01
-
-    def __init__(self, input_file: str, output_file: str) -> None:
+    def __init__(self, input_file: str, output_file: str, max_group_size: int = 40, max_chunk_size: int = 10000,
+                 min_cluster_size: int = 5, xi: float = 0.01) -> None:
         if not input_file.endswith(('.csv', '.csv.gz')):
             raise FileFormatError("Input file is not a CSV file")
         self.input_file = input_file
@@ -44,7 +40,7 @@ class NewsletterGenerator:
         """
         Reads a CSV file and stores the data into a dataframe. It handles both regular and gzip-compressed CSV files.
         If an error occurs while opening the file, an error message is logged and the exception is re-raised.
-        Reads large files in chunks and concatenates them for reducing memory usage. Chunk size specified in MAX_CHUNK_SIZE.
+        Reads large files in chunks and concatenates them for reducing memory usage. Chunk size specified in max_chunk_size.
 
         Raises:
         -------
@@ -55,9 +51,9 @@ class NewsletterGenerator:
         """
         try:
             if self.input_file.endswith('.csv.gz'):
-                chunks = pd.read_csv(self.input_file, compression='gzip', chunksize=self.MAX_CHUNK_SIZE)
+                chunks = pd.read_csv(self.input_file, compression='gzip', chunksize=self.max_chunk_size)
             else:
-                chunks = pd.read_csv(self.input_file, chunksize=self.MAX_CHUNK_SIZE)
+                chunks = pd.read_csv(self.input_file, chunksize=self.max_chunk_size)
             for chunk in chunks:
                 self.df = pd.concat([self.df, chunk])
         except (FileNotFoundError, IOError) as e:
@@ -94,7 +90,7 @@ class NewsletterGenerator:
                 f"The input DataFrame is missing the following required columns: {missing_columns_str}.")
 
         preprocessed_df = self._preprocess_data()
-        if preprocessed_df.shape[0] < self.MIN_CLUSTER_SIZE:
+        if preprocessed_df.shape[0] < self.min_cluster_size:
             raise InsufficientRowsError("The input dataset has fewer than 5 rows of values in correct format.")
 
         logging.info("Data validation passed")
@@ -107,7 +103,7 @@ class NewsletterGenerator:
         logging.info("Clustering data points")
         self.df['latitude_rad'] = np.radians(self.df['latitude'])
         self.df['longitude_rad'] = np.radians(self.df['longitude'])
-        self.df['cluster_label'], cluster_labels = self.run_optics(self.MIN_CLUSTER_SIZE, xi=self.XI)
+        self.df['cluster_label'], cluster_labels = self.run_optics(self.min_cluster_size, xi=self.xi)
         num_clusters = len(set(cluster_labels))
 
         coords = self.df[['latitude', 'longitude']].values
@@ -120,6 +116,13 @@ class NewsletterGenerator:
         self._reassign_small_clusters()
         self._assign_starting_points_for_each_cluster()
         logging.info(f"Finished clustering data points into {len(self.centermost_points)} clusters")
+
+    def _find_closest_cluster(self, user_id):
+        user_coords = self.df.loc[self.df['user_id'] == user_id, ['latitude', 'longitude']].values
+        closest_cluster = min(self.centermost_points, key=lambda point: min(
+            great_circle(point, coord).m for coord in user_coords))
+        closest_cluster_idx = self.centermost_points[self.centermost_points == closest_cluster].index[0]
+        return closest_cluster_idx
 
     def run_optics(self, min_samples: int = 5, xi: float = 0.01) -> Tuple[pd.Series, List]:
         """
@@ -142,7 +145,7 @@ class NewsletterGenerator:
 
     def _assign_users_to_groups(self) -> pd.DataFrame:
         """
-        Groups users to groups of maximum size specified in self.MAX_GROUP_SIZE.
+        Groups users to groups of maximum size specified in self.max_group_size.
         """
         group_data = []
         unique_clusters = self.df['cluster_label'].unique().tolist()
@@ -151,7 +154,7 @@ class NewsletterGenerator:
             cluster_points = self.df[self.df['cluster_label'] == cluster_label]
             cluster_members = cluster_points['user_id'].tolist()
             unique_users = cluster_points['user_id'].nunique()
-            num_groups = max(1, math.ceil(unique_users / self.MAX_GROUP_SIZE))
+            num_groups = max(1, math.ceil(unique_users / self.max_group_size))
             group_size = math.ceil(unique_users / num_groups)
             self._handle_grouping(group_data, cluster_members, unique_users, group_size, num_groups, cluster_label)
         self._assign_group_data(group_data)
@@ -201,22 +204,19 @@ class NewsletterGenerator:
                 group_id, ','.join(members), group_size]
 
     def _assign_cluster_for_outliers(self):
-        '''Assign the closest cluster for users without a cluster by finding the closest one from all the users points'''
+        '''Assigns the closest cluster for users without a cluster by finding the closest one from all the users points'''
         users_without_cluster = []
         for user_id in self.df[self.df['cluster_label'] == -1]['user_id'].unique():
             if self.df[self.df['user_id'] == user_id]['cluster_label'].nunique() == 1:
                 users_without_cluster.append(user_id)
 
         for user_id in users_without_cluster:
-            user_coords = self.df.loc[self.df['user_id'] == user_id, ['latitude', 'longitude']].values
-            closest_cluster = min(self.centermost_points, key=lambda point: min(
-                great_circle(point, coord).m for coord in user_coords))
-            closest_cluster_idx = self.centermost_points[self.centermost_points == closest_cluster].index[0]
+            closest_cluster_idx = self._find_closest_cluster(user_id)
             self.df.loc[self.df['user_id'] == user_id, 'cluster_label'] = closest_cluster_idx
 
     def _filter_unclustered_and_keep_closest_points(self):
         '''
-        Drop unclustered points and keep only the rows with the smallest distance for each user_id
+        Drops unclustered points and keep only the rows with the smallest distance for each user_id
         '''
         self.df = self.df[self.df['cluster_label'] != -1]
         self.df['distance'] = self.df.apply(lambda row: calculate_distance(
@@ -226,13 +226,13 @@ class NewsletterGenerator:
 
     def _reassign_small_clusters(self):
         '''
-        Assign the closest cluster for users in small clusters by finding the closest one from all the users points
+        Assigns the closest cluster for users in small clusters by finding the closest one from all the users points
         '''
 
         # Identify small clusters and valid (non-small) clusters
         cluster_sizes = self.df.groupby('cluster_label')['user_id'].nunique()
-        small_clusters = cluster_sizes[cluster_sizes < self.MIN_CLUSTER_SIZE].index
-        valid_clusters = cluster_sizes[cluster_sizes >= self.MIN_CLUSTER_SIZE].index
+        small_clusters = cluster_sizes[cluster_sizes < self.min_cluster_size].index
+        valid_clusters = cluster_sizes[cluster_sizes >= self.min_cluster_size].index
 
         # Filter centermost_points to include only valid clusters
         self.centermost_points = self.centermost_points[self.centermost_points.index.isin(valid_clusters)]
@@ -241,15 +241,12 @@ class NewsletterGenerator:
             users_in_small_clusters.extend(self.df[self.df['cluster_label'] == cluster]['user_id'].unique())
 
         for user_id in users_in_small_clusters:
-            user_coords = self.df.loc[self.df['user_id'] == user_id, ['latitude', 'longitude']].values
-            closest_cluster = min(self.centermost_points, key=lambda point: min(
-                great_circle(point, coord).m for coord in user_coords))
-            closest_cluster_idx = self.centermost_points[self.centermost_points == closest_cluster].index[0]
+            closest_cluster_idx = self._find_closest_cluster(user_id)
             self.df.loc[self.df['user_id'] == user_id, 'cluster_label'] = closest_cluster_idx
 
     def _assign_starting_points_for_each_cluster(self) -> None:
         """
-        Create a dictionary mapping cluster labels to starting point IDs and add starting points.
+        Creates a dictionary mapping cluster labels to starting point IDs and add starting points.
         """
         start_point_ids = {index: uuid.uuid4() for index in self.centermost_points.index}
         self.df['start_point_id'] = self.df['cluster_label'].map(start_point_ids)
@@ -268,7 +265,7 @@ class NewsletterGenerator:
 
     def _generate_output_csv(self) -> None:
         """
-        Generate the output data and save it to a CSV file.
+        Generates the output data and save it to a CSV file.
         The output distance is in kilometers and measured to the user's closest starting point.
         """
         logging.info("Start generating output CSV")

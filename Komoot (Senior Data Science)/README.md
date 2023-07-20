@@ -1,5 +1,9 @@
 # Komoot Challenge
 
+Komoot challenge for the Senior Backend Engineer (Data Science) position.
+
+eda.ipynb contains the exploratory data analysis for the challenge, while output.csv has the results for the given sample dataset (tours.csv.gz).
+
 ## Installation
 
 1. Recommended to run a virtual env (e.g. `python3 -m venv myenv`; Win: `myenv\Scripts\activate` / MacOS & Linux: `source myenv/bin/activate`)
