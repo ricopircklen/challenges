@@ -35,6 +35,10 @@ class NewsletterGenerator:
         self.output_file = output_file
         self.df = None
         self.centermost_points = None
+        self.max_group_size = max_group_size
+        self.max_chunk_size = max_chunk_size
+        self.min_cluster_size = min_cluster_size
+        self.xi = xi
 
     def _read_csv_file(self) -> None:
         """
