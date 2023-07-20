@@ -44,8 +44,8 @@ class NewsletterGenerator:
         """
         Reads a CSV file and stores the data into a dataframe. It handles both regular and gzip-compressed CSV files.
         If an error occurs while opening the file, an error message is logged and the exception is re-raised.
-        Reads large files in chunks and concatenates them for reducing memory usage. Chunk size specified in max_chunk_size.
-
+        Reads large files in chunks and concatenates them for reducing memory usage. However, this is just a demonstration 
+        and would require running the processing in chunks instead concatenating the chunks.
         Raises:
         -------
         FileNotFoundError
